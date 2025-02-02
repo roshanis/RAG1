@@ -12,6 +12,10 @@ import pdfParse from 'pdf-parse';
 import OpenAI from 'openai';
 import mammoth from 'mammoth';
 import XLSX from 'xlsx';
+import crypto from 'crypto';
+
+// Path to the metadata file
+const METADATA_FILE = path.join(process.cwd(), 'faiss_metadata.json');
 
 // Configure API to disable default body parsing
 export const config = {
@@ -36,6 +40,13 @@ function chunkText(text, wordsPerChunk = 500) {
     chunks.push(words.slice(i, i + wordsPerChunk).join(' '));
   }
   return chunks;
+}
+
+function calculateFileHash(filePath) {
+  const fileBuffer = fs.readFileSync(filePath);
+  const hashSum = crypto.createHash('sha256');
+  hashSum.update(fileBuffer);
+  return hashSum.digest('hex');
 }
 
 // Main API handler for document ingestion
@@ -67,6 +78,11 @@ const handler = async (req, res) => {
     });
 
     const embeddingsData = [];
+    const fileEmbeddingCounts = {};
+
+    // Load existing hashes from metadata file
+    const existingHashes = fs.existsSync(METADATA_FILE) ?
+      JSON.parse(fs.readFileSync(METADATA_FILE)).hashes || [] : [];
 
     // Process each file in the upload
     for (const file of fileList) {
@@ -105,6 +121,13 @@ const handler = async (req, res) => {
         continue;
       }
 
+      // Check if file already exists in index
+      const fileHash = calculateFileHash(file.filepath);
+      if (existingHashes.includes(fileHash)) {
+        console.log(`Skipping duplicate file: ${file.originalFilename}`);
+        continue;
+      }
+
       // Split text into chunks and generate embeddings
       const chunks = chunkText(fileText);
       for (const chunk of chunks) {
@@ -118,11 +141,14 @@ const handler = async (req, res) => {
           embeddingsData.push({
             text: chunk,
             embedding: response.data[0].embedding,
+            hash: fileHash
           });
         } catch (openaiErr) {
           console.error('OpenAI error:', openaiErr);
         }
       }
+
+      fileEmbeddingCounts[file.originalFilename] = chunks.length;
     }
 
     // Write embeddings to temporary file for Python processing
@@ -137,7 +163,7 @@ const handler = async (req, res) => {
       tempDataPath
     ]);
 
-    res.status(200).json({ embeddings: embeddingsData });
+    res.status(200).json({ embeddings: embeddingsData, fileEmbeddingCounts });
   });
 };
 

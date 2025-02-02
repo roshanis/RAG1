@@ -6,6 +6,7 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [isQuerying, setIsQuerying] = useState(false);
   const [queryResult, setQueryResult] = useState(null);
+  const [fileEmbeddingCounts, setFileEmbeddingCounts] = useState({});
 
   // Handler for file/folder upload
   const handleUpload = async (e) => {
@@ -29,6 +30,7 @@ export default function Home() {
     const result = await response.json();
     if (response.ok) {
       setUploadStatus('Documents ingested successfully.');
+      setFileEmbeddingCounts(result.fileEmbeddingCounts);
     } else {
       setUploadStatus(`Error: ${result.error}`);
     }
@@ -64,11 +66,29 @@ export default function Home() {
         <form>
           {/* The "webkitdirectory" attribute allows folder uploads */}
           <input
-            type="file" name="files" webkitdirectory directory multiple className="mb-4" onChange={handleUpload}
+            type="file"
+            name="files"
+            webkitdirectory="true"
+            directory="true"
+            multiple
+            className="mb-4"
+            onChange={handleUpload}
             disabled={isUploading}
           />
           {isUploading && <p>Uploading...</p>}
           <p>{uploadStatus}</p>
+          {Object.keys(fileEmbeddingCounts).length > 0 && (
+            <div className="mt-4">
+              <h3 className="font-semibold">Embeddings Created:</h3>
+              <ul className="list-disc pl-5">
+                {Object.entries(fileEmbeddingCounts).map(([filename, count]) => (
+                  <li key={filename}>
+                    {filename}: {count} embeddings
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </form>
       </section>
       

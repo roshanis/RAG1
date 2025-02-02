@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+#Converts all files in the current directory to markdown using Microsoft's markitdown
 import sys
 from markitdown import MarkItDown
 

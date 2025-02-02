@@ -34,8 +34,12 @@ def load_index():
     # Initialize or load metadata
     if os.path.exists(METADATA_FILE):
         print(f"Loading metadata from {METADATA_FILE}", file=sys.stderr)
-        with open(METADATA_FILE, "r") as f:
-            metadata = json.load(f)
+        try:
+            with open(METADATA_FILE, "r") as f:
+                metadata = json.load(f)
+        except json.JSONDecodeError:
+            print(f"Warning: {METADATA_FILE} is empty or corrupted. Initializing new metadata.", file=sys.stderr)
+            metadata = []
     else:
         print("No metadata found - initializing empty list", file=sys.stderr)
         metadata = []
@@ -64,9 +68,12 @@ def ingest(data_file):
     # Prepare numpy arrays for FAISS
     embeddings = []
     texts = []
+    hashes = []
     for item in data:
         embeddings.append(item["embedding"])
         texts.append(item["text"])
+        hashes.append(item.get("hash", ""))
+
     embeddings_np = np.array(embeddings).astype('float32')
 
     index, metadata = load_index()
@@ -77,7 +84,7 @@ def ingest(data_file):
         index.add(embeddings_np)
         metadata.extend(texts)
         save_index(index, metadata)
-        print(f"Ingested {index.ntotal - initial_size} new chunks")
+        print(f"Successfully ingested {index.ntotal - initial_size} new chunks", file=sys.stderr)
     except Exception as e:
         print(f"Ingestion error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -103,8 +110,9 @@ def query(query_file, k=5):
     
     index, metadata = load_index()
     if index.ntotal == 0:
+        print("Error: FAISS index is empty. Please ingest documents first.", file=sys.stderr)
         print(json.dumps([]))
-        sys.exit(0)
+        sys.exit(1)
 
     # Perform similarity search
     distances, indices = index.search(query_vector, k)
