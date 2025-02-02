@@ -1,3 +1,9 @@
+/**
+ * API endpoint for document ingestion and embedding generation
+ * Handles file uploads, text extraction, chunking, and embedding creation
+ * Integrates with Python FAISS script for vector storage
+ */
+
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
@@ -7,28 +13,38 @@ import OpenAI from 'openai';
 import mammoth from 'mammoth';
 import XLSX from 'xlsx';
 
+// Configure API to disable default body parsing
 export const config = {
   api: {
-    bodyParser: false, // we use formidable to parse multipart forms
+    bodyParser: false, // Use formidable for multipart form parsing
   },
 };
 
-// Helper: chunk text into pieces (e.g. 500 words each)
+/**
+ * Splits text into manageable chunks for embedding generation
+ * @param {string} text - Input text to chunk
+ * @param {number} wordsPerChunk - Number of words per chunk (default: 500)
+ * @returns {string[]} Array of text chunks
+ */
 function chunkText(text, wordsPerChunk = 500) {
+  // Split text by whitespace to count words
   const words = text.split(/\s+/);
   const chunks = [];
+  
+  // Create chunks using sliding window approach
   for (let i = 0; i < words.length; i += wordsPerChunk) {
     chunks.push(words.slice(i, i + wordsPerChunk).join(' '));
   }
   return chunks;
 }
 
+// Main API handler for document ingestion
 const handler = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Parse form using formidable
+  // Parse multipart form data using formidable
   const form = new IncomingForm({ multiples: true });
   form.parse(req, async (err, fields, files) => {
     if (err) {
@@ -36,8 +52,8 @@ const handler = async (req, res) => {
       return res.status(500).json({ error: 'Error parsing form data' });
     }
 
+    // Process uploaded files
     const fileList = [];
-    // files could be an object with one or many files.
     if (Array.isArray(files.files)) {
       fileList.push(...files.files);
     } else if (files.files) {
@@ -52,24 +68,22 @@ const handler = async (req, res) => {
 
     const embeddingsData = [];
 
-    // Process each uploaded file
+    // Process each file in the upload
     for (const file of fileList) {
       const ext = path.extname(file.originalFilename).toLowerCase();
       let fileText = '';
 
       try {
+        // File type handling using appropriate libraries
         if (ext === '.pdf') {
-          // Read and extract text from PDF using pdf-parse
           const dataBuffer = fs.readFileSync(file.filepath);
           const pdfData = await pdfParse(dataBuffer);
           fileText = pdfData.text;
         } else if (ext === '.docx') {
-          // Process DOCX file using mammoth
           const dataBuffer = fs.readFileSync(file.filepath);
           const result = await mammoth.extractRawText({ buffer: dataBuffer });
           fileText = result.value;
         } else if (ext === '.xlsx') {
-          // Process XLSX file using xlsx
           const workbook = XLSX.readFile(file.filepath);
           let sheetTexts = [];
           workbook.SheetNames.forEach(sheetName => {
@@ -82,18 +96,20 @@ const handler = async (req, res) => {
           fileText = fs.readFileSync(file.filepath, 'utf8');
         } else {
           console.warn(`Unsupported file type: ${file.originalFilename}`);
-          continue; // Skip unsupported file types
+          continue;
         }
+
         console.log(`Extracted ${fileText.length} characters from ${file.originalFilename}`);
       } catch (fileErr) {
         console.error(`Error processing file ${file.originalFilename}:`, fileErr);
-        continue; // Skip files that cause errors
+        continue;
       }
 
-      // Split text into chunks
+      // Split text into chunks and generate embeddings
       const chunks = chunkText(fileText);
       for (const chunk of chunks) {
         try {
+          // Generate embedding for each text chunk
           const response = await openai.embeddings.create({
             model: 'text-embedding-3-small',
             input: chunk,
@@ -109,12 +125,17 @@ const handler = async (req, res) => {
       }
     }
 
-    // Write embeddingsData to a temporary JSON file
+    // Write embeddings to temporary file for Python processing
     const tempDataPath = path.join(process.cwd(), 'temp_embeddings.json');
     fs.writeFileSync(tempDataPath, JSON.stringify(embeddingsData));
 
-    // Call the Python script for ingestion
-    const pythonProcess = spawn('python3', ['python/faiss_index.py', 'ingest', '--data-file', tempDataPath]);
+    // Execute Python FAISS ingestion script
+    const pythonProcess = spawn('python3', [
+      'python/faiss_index.py',
+      'ingest',
+      '--data-file',
+      tempDataPath
+    ]);
 
     res.status(200).json({ embeddings: embeddingsData });
   });
