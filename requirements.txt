@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+faiss-cpu
+numpy
+pydantic
+openai
+faiss-cpu
+numpy
+pydantic
+markitdown
+mammoth

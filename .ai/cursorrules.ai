@@ -1,0 +1,35 @@
+Plan for Building a RAG-Based Application with Next.js and Tailwind
+
+1. Project Overview
+
+Objective: Build a RAG (Retrieval-Augmented Generation) application that can ingest documents from a folder, create vector embeddings, store them in a FAISS vector database, and answer user queries based on the stored data.
+Tech Stack:
+Frontend: Next.js (React framework) with Tailwind CSS for styling.
+Backend: Next.js API routes for server-side logic.
+Vector Database: FAISS for efficient similarity search.
+LLM: OpenAI for generating embeddings and answering questions.
+Libraries:
+faiss or faiss-cpu for vector storage and search.
+openai for embeddings and LLM interactions.
+pdf-lib or similar for parsing PDFs (if needed).
+fs and path for file system operations.
+tailwindcss for styling.
+
+2. Application Flow
+
+Ingestion:
+User uploads a folder containing documents (PDFs, text files, etc.).
+Backend processes the files, extracts text, and generates embeddings using OpenAI.
+Embeddings are stored in a FAISS index.
+Querying:
+User asks a question via the frontend.
+Backend converts the question into an embedding, searches the FAISS index for similar documents, and retrieves relevant chunks.
+The retrieved chunks are passed to OpenAI's LLM to generate a coherent answer.
+Frontend:
+A simple UI for uploading folders and asking questions.
+Display the answers in a user-friendly format.
+
+3. Backend Implementation
+
+Step 1: Set Up Next.js API Routes
+Create API routes for handling file uploads, embeddings, and querying.

@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnpm/
+.env
+.env.local
+.next/
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Local development
+*.swp
+*.swo
+.DS_Store
+faiss.index
+faiss_metadata.json
+temp_*.json 
