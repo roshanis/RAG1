@@ -1,6 +1,6 @@
 # RAG Document Assistant
 
-A Retrieval-Augmented Generation (RAG) system built with Next.js and Python/FAISS for document question answering.
+A Retrieval-Augmented Generation (RAG) system built with Next.js , Microsoft MarkItDown and Python/FAISS for document question answering.
 
 ## Features
 - Document ingestion (PDF, DOCX, XLSX, TXT)
